@@ -1,0 +1,36 @@
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+alembic
+asyncpg
+# psycopg2-binary
+
+# Config
+python-dotenv
+
+# Authentication & Security
+pydantic-settings
+pydantic[email]
+python-multipart
+passlib[bcrypt,argon2]
+python-jose[cryptography]
+psycopg2-binary
+
+# Caching
+redis
+
+# Analytics
+pandas
+numpy
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+
+# Dev tools
+black
+isort
+mypy
