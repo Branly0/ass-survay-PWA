@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from app.model.owner import Owner
 from app.schema.owner import OwnerCreate, OwnerLogin, OwnerResponse
 from app.db.session import get_db
-from app.core.security import HashPassword, VerifyPassword
+from app.core.security import HashPassword, VerifyPassword, CreateAccessToken, CreateRefreshToken
+from uuid import uuid4
 
 router = APIRouter(prefix="/owner",tags=["owner"])
 
@@ -16,12 +17,18 @@ def register_owner(owner: OwnerCreate, db: Session = Depends(get_db)):
     
     #hash the password
     hashed_password = HashPassword(owner.password)
+
+    #token generation
+    access_token = CreateAccessToken(data={"sub": owner.email})
+    refresh_token = CreateRefreshToken(data={"sub": owner.email})
     #create the owner
     db_owner = Owner(
+        id = uuid4(),
+        name=owner.name,
         email=owner.email,
-        hashed_password=hashed_password
+        password_hash=hashed_password
     )
     db.add(db_owner) 
     db.commit()
     db.refresh(db_owner)
-    return db_owner
+    return OwnerResponse(id=db_owner.id, access_token=access_token, refresh_token=refresh_token)

@@ -7,6 +7,8 @@ from sqlalchemy import pool
 
 from alembic import context
 
+from app.model.owner import Owner
+
 ##setting the db url
 from dotenv import load_dotenv
 import os

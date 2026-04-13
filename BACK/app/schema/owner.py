@@ -1,16 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, UUID4
 
 class OwnerCreate(BaseModel):
     name: str
-    email: str
+    email: EmailStr
     password: str
 
 class OwnerLogin(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 class OwnerResponse(BaseModel):
-    id: str
+    id: UUID4
     access_token: str
     refresh_token: str
 

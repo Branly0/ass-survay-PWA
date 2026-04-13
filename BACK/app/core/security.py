@@ -15,7 +15,7 @@ from jose import jwt
 from datetime import datetime, timedelta
 from app.core.config import settings
 
-secure_key = settings.SECURE_KEY
+secret_key = settings.SECRET_KEY
 algorithm = settings.ALGORITHM
 access_token_expire_minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 refresh_token_expire_days = settings.REFRESH_TOKEN_EXPIRE_DAYS
@@ -24,19 +24,19 @@ def CreateAccessToken(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=access_token_expire_minutes)
     to_encode.update({"type": "access", "exp": expire})
-    encoded_jwt = jwt.encode(to_encode, secure_key, algorithm=algorithm)
+    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encoded_jwt
 
 def CreateRefreshToken(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=refresh_token_expire_days)
     to_encode.update({"type": "refresh", "exp": expire})
-    encoded_jwt = jwt.encode(to_encode, secure_key, algorithm=algorithm)
+    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encoded_jwt
 
 def refresh_access_token(refresh_token: str) -> str:
     try:
-        payload = jwt.decode(refresh_token, secure_key, algorithms=[algorithm])
+        payload = jwt.decode(refresh_token, secret_key, algorithms=[algorithm])
         if payload.get("type") != "refresh":
             raise ValueError("Invalid token type")
         email: str = payload.get("sub")
