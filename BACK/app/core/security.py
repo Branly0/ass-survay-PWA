@@ -32,3 +32,37 @@ def CreateRefreshToken(data: dict) -> str:
     expire = datetime.utcnow() + timedelta(days=refresh_token_expire_days)
     to_encode.update({"type": "refresh", "exp": expire})
     encoded_jwt = jwt.encode(to_encode, secure_key, algorithm=algorithm)
+    return encoded_jwt
+
+def refresh_access_token(refresh_token: str) -> str:
+    try:
+        payload = jwt.decode(refresh_token, secure_key, algorithms=[algorithm])
+        if payload.get("type") != "refresh":
+            raise ValueError("Invalid token type")
+        email: str = payload.get("sub")
+
+        #for the refresh check, we can also verify if the token exists in the database and is valid (not revoked)
+        from app.db.session import SessionLocal
+        from app.model.token import Token
+        db = SessionLocal()
+        token = db.query(Token).filter(Token.token == refresh_token).first()
+
+        if token.is_revoked:
+            raise ValueError("Token has been revoked, you are logged out")
+
+        if email is None:
+            raise ValueError("Invalid token")
+        return CreateAccessToken(data={"sub": email})
+    except jwt.JWTError:
+        raise ValueError("Invalid token")
+    
+def AuthenticateOwner(email: str, password: str) -> bool:
+    from app.db.session import SessionLocal
+    from app.model.owner import Owner
+    db = SessionLocal()
+    owner = db.query(Owner).filter(Owner.email == email).first()
+    if not owner:
+        return False
+    if not VerifyPassword(password, owner.hashed_password):
+        return False
+    return True
