@@ -66,3 +66,13 @@ def AuthenticateOwner(email: str, password: str) -> bool:
     if not VerifyPassword(password, owner.hashed_password):
         return False
     return True
+
+def get_current_owner(token: str):
+    try:
+        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        email: str = payload.get("sub")
+        if email is None:
+            raise ValueError("Invalid token")
+        return email
+    except jwt.JWTError:
+        raise ValueError("Invalid token")

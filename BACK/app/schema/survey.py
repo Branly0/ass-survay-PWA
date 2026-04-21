@@ -9,7 +9,7 @@ class Surveyfiller(BaseModel):
     description: str
     age_group: str
     gender: str 
-    questions: json
+    questions: str
     nationality: str 
 
 class SurveyResponse(Surveyfiller):

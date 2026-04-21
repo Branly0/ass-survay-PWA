@@ -4,6 +4,7 @@ import { getAllSurveys, getBackupMeta, clearOwner } from '../db'
 import { disconnectSocket } from '../socket'
 import type { Survey, SurveyStatus } from '../types'
 import { formatDistanceToNow } from 'date-fns'
+import { logout } from '../lib/auth'
 
 type FilterTab = 'all' | SurveyStatus
 
@@ -28,7 +29,7 @@ export default function Dashboard() {
 
   async function handleLogout() {
     disconnectSocket()
-    await clearOwner()
+    await logout()
     window.location.reload()
   }
 

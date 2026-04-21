@@ -45,7 +45,9 @@ export interface BackupMeta {
   lastBackupStatus: 'success' | 'failed' | 'pending' | null;
 }
 
+
 export interface Owner {
   email: string;
-  token: string;           // JWT stored locally after login
+  token: string;         // JWT
+  refreshToken: string;  // refresh token
 }

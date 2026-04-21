@@ -30,8 +30,8 @@ export default function Login({ onLogin }: Props) {
         return
       }
 
-      const { token } = await res.json()
-      await saveOwner({ email, token })
+      const { token, refreshToken } = await res.json()
+      await saveOwner({ email, token, refreshToken })
       connectSocket(token)
       onLogin()
     } catch {
