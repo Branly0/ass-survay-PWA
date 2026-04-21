@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.core.security import HashPassword, VerifyPassword, CreateAccessToken, CreateRefreshToken
 from uuid import uuid4
 
-router = APIRouter(prefix="/owner",tags=["owner"])
+router = APIRouter(prefix="/auth",tags=["auth"])
 
 @router.post("/register", response_model=OwnerResponse)
 def register_owner(owner: OwnerCreate, db: Session = Depends(get_db)):
@@ -31,4 +31,21 @@ def register_owner(owner: OwnerCreate, db: Session = Depends(get_db)):
     db.add(db_owner) 
     db.commit()
     db.refresh(db_owner)
+    return OwnerResponse(id=db_owner.id, access_token=access_token, refresh_token=refresh_token)
+
+@router.post("/login", response_model=OwnerResponse)
+def login_owner(owner: OwnerLogin, db: Session = Depends(get_db)):
+    #check if owner exists
+    db_owner = db.query(Owner).filter(Owner.email == owner.email).first()
+    if not db_owner:
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    #verify the password
+    if not VerifyPassword(owner.password, db_owner.password_hash):
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+
+    #token generation
+    access_token = CreateAccessToken(data={"sub": db_owner.email})
+    refresh_token = CreateRefreshToken(data={"sub": db_owner.email})
+
     return OwnerResponse(id=db_owner.id, access_token=access_token, refresh_token=refresh_token)

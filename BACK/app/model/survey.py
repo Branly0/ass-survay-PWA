@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Enum, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, Enum, DateTime, func, JSON
 from app.db.session import Base
 import enum, datetime
 
@@ -21,5 +21,6 @@ class Survey(Base):
     age_group = Column(Enum(AgeGroups), nullable=True)
     gender = Column(Enum(Genders), nullable=True)
     nationality = Column(String(50), nullable=True)
+    question = Column(JSON)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 

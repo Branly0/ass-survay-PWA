@@ -1,6 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { saveResponse } from '../db';
-import { Response } from '../types';
+import type { SurveyResponse } from '../types';
 
 let socket: Socket | null = null;
 
@@ -17,7 +17,7 @@ export function connectSocket(token: string) {
   });
 
   // Server pushes a new response when a respondent submits
-  socket.on('new_response', async (response: Response) => {
+  socket.on('new_response', async (response: SurveyResponse) => {
     console.log('[socket] new response received', response.id);
     await saveResponse({ ...response, synced: true });
   });

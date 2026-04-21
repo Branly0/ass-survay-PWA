@@ -32,7 +32,7 @@ export interface Answer {
   value: string | string[]; // string[] for checkbox
 }
 
-export interface Response {
+export interface SurveyResponse {
   id: string;
   surveyId: string;
   answers: Answer[];

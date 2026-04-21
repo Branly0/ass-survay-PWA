@@ -1,5 +1,5 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { Survey, Response, BackupMeta, Owner } from '../types';
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import type { Survey, SurveyResponse, BackupMeta, Owner } from '../types';
 
 interface SurveyDB extends DBSchema {
   surveys: {
@@ -8,7 +8,7 @@ interface SurveyDB extends DBSchema {
   };
   responses: {
     key: string;
-    value: Response;
+    value: SurveyResponse;
     indexes: { 'by-survey': string };
   };
   backup_meta: {
@@ -68,12 +68,12 @@ export async function deleteSurvey(id: string): Promise<void> {
 }
 
 // ── Responses ──────────────────────────────────────────────
-export async function getResponsesBySurvey(surveyId: string): Promise<Response[]> {
+export async function getResponsesBySurvey(surveyId: string): Promise<SurveyResponse[]> {
   const db = await getDB();
   return db.getAllFromIndex('responses', 'by-survey', surveyId);
 }
 
-export async function saveResponse(response: Response): Promise<void> {
+export async function saveResponse(response: SurveyResponse): Promise<void> {
   const db = await getDB();
   await db.put('responses', response);
 }
