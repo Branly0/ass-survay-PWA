@@ -10,7 +10,7 @@ class OwnerLogin(BaseModel):
     password: str
 
 class OwnerResponse(BaseModel):
-    id: UUID4
+    email: EmailStr
     access_token: str
     refresh_token: str
 

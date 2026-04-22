@@ -50,7 +50,7 @@ def login_owner(owner: OwnerLogin, db: Session = Depends(get_db)):
     access_token = CreateAccessToken(data={"sub": db_owner.email})
     refresh_token = CreateRefreshToken(data={"sub": db_owner.email})
 
-    return OwnerResponse(id=db_owner.id, access_token=access_token, refresh_token=refresh_token)
+    return OwnerResponse(email=db_owner.email, access_token=access_token, refresh_token=refresh_token)
 
 @router.post("/refresh", response_model=OwnerResponse)
 def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
@@ -78,9 +78,9 @@ def logout_owner(refresh_token: str, db: Session = Depends(get_db)):
     except jwt.JWTError:
         raise HTTPException(status_code=400, detail="Invalid token")
 
-@router.get("/me", response_model=OwnerResponse)
+@router.get("/me")
 def get_current_owner_info(current_owner_email: str = Depends(get_current_owner), db: Session = Depends(get_db)):
     db_owner = db.query(Owner).filter(Owner.email == current_owner_email).first()
     if not db_owner:
         raise HTTPException(status_code=404, detail="Owner not found")
-    return OwnerResponse(id=db_owner.id, name=db_owner.name, email=db_owner.email)
+    return True

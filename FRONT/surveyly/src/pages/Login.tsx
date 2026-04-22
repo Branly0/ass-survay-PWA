@@ -13,33 +13,46 @@ export default function Login({ onLogin }: Props) {
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+  e.preventDefault()
+  setError('')
+  setLoading(true)
 
-    try {
-      const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+  try {
+    const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
 
-      if (!res.ok) {
-        setError('Invalid email or password.')
-        setLoading(false)
-        return
-      }
+    console.log('status:', res.status)
+    const data = await res.json()
+    console.log('response data:', data)
 
-      const { token, refreshToken } = await res.json()
-      await saveOwner({ email, token, refreshToken })
-      connectSocket(token)
-      onLogin()
-    } catch {
-      setError('Could not reach the server. Check your connection.')
-    } finally {
+    if (!res.ok) {
+      setError('Invalid email or password.')
       setLoading(false)
+      return
     }
+
+    console.log('token:', data.access_token)
+    console.log('refreshToken:', data.refreshToken)
+      
+        // Make sure saveOwner finishes BEFORE onLogin() is called
+    await saveOwner({ email, token: data.access_token, refreshToken: data.refresh_token })
+      
+    // Small safety wait for IndexedDB to commit
+    await new Promise(resolve => setTimeout(resolve, 100))
+      
+    connectSocket(data.access_token)
+    onLogin()
+
+  } catch (err) {
+    console.error('fetch error:', err)
+    setError('Could not reach the server. Check your connection.')
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -58,6 +71,8 @@ export default function Login({ onLogin }: Props) {
           <div>
             <label className="block text-sm text-gray-600 mb-1.5">Email</label>
             <input
+              id="email"
+              name="email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -69,6 +84,8 @@ export default function Login({ onLogin }: Props) {
           <div>
             <label className="block text-sm text-gray-600 mb-1.5">Password</label>
             <input
+              id="password"
+              name="password"
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}

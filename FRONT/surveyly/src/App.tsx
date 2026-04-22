@@ -15,30 +15,32 @@ function App() {
   useEffect(() => {
     async function checkAuth() {
       const owner = await getOwner()
+      console.log('owner in db:', owner)
 
-      // No token at all — go to login
       if (!owner?.token) {
+        console.log('no token found')
         setIsAuth(false)
         return
       }
 
-      // Step 1: check if existing JWT is still valid
       const valid = await validateToken()
+      console.log('token valid:', valid)
+
       if (valid) {
         connectSocket(owner.token)
         setIsAuth(true)
         return
       }
 
-      // Step 2: JWT expired — try refresh
       const newToken = await refreshAccessToken()
+      console.log('refresh result:', newToken)
+
       if (newToken) {
         connectSocket(newToken)
         setIsAuth(true)
         return
       }
 
-      // Step 3: both failed — logout
       await logout()
       setIsAuth(false)
     }
@@ -62,7 +64,10 @@ function App() {
           </>
         ) : (
           <>
-            <Route path="/login" element={<Login onLogin={() => setIsAuth(true)} />} />
+            <Route
+              path="/login"
+              element={<Login onLogin={() => setIsAuth(true)} />}
+            />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </>
         )}
