@@ -7,7 +7,10 @@ export async function validateToken(): Promise<boolean> {
   if (!owner?.token) return false
 
   try {
-    const res = await fetch(`${SERVER_URL}/auth/me?token=${owner.token}`)
+    const res = await fetch(`${SERVER_URL}/auth/me`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${owner.token}` },
+    })
     console.log('validateToken status:', res.status)
     return res.ok
   } catch (err) {

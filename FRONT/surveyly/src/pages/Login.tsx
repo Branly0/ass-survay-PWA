@@ -13,46 +13,44 @@ export default function Login({ onLogin }: Props) {
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault()
-  setError('')
-  setLoading(true)
-
-  try {
-    const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-
-    console.log('status:', res.status)
-    const data = await res.json()
-    console.log('response data:', data)
-
-    if (!res.ok) {
-      setError('Invalid email or password.')
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    
+    try {
+      // OAuth2 requires form-encoded data, not JSON
+      const formData = new URLSearchParams()
+      formData.append('username', email)  // OAuth2 uses 'username' not 'email'
+      formData.append('password', password)
+    
+      const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
+      })
+    
+      console.log('status:', res.status)
+      const data = await res.json()
+      console.log('response data:', data)
+    
+      if (!res.ok) {
+        setError('Invalid email or password.')
+        setLoading(false)
+        return
+      }
+    
+      await saveOwner({ email, token: data.access_token, refreshToken: data.refresh_token })
+      await new Promise(resolve => setTimeout(resolve, 100))
+      connectSocket(data.access_token)
+      onLogin()
+    
+    } catch (err) {
+      console.error('fetch error:', err)
+      setError('Could not reach the server. Check your connection.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    console.log('token:', data.access_token)
-    console.log('refreshToken:', data.refreshToken)
-      
-        // Make sure saveOwner finishes BEFORE onLogin() is called
-    await saveOwner({ email, token: data.access_token, refreshToken: data.refresh_token })
-      
-    // Small safety wait for IndexedDB to commit
-    await new Promise(resolve => setTimeout(resolve, 100))
-      
-    connectSocket(data.access_token)
-    onLogin()
-
-  } catch (err) {
-    console.error('fetch error:', err)
-    setError('Could not reach the server. Check your connection.')
-  } finally {
-    setLoading(false)
   }
-}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

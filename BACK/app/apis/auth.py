@@ -2,11 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from jose import jwt
 from sqlalchemy.orm import Session
 from app.model.owner import Owner
+from app.model.token import Token
 from app.schema.owner import OwnerCreate, OwnerLogin, OwnerResponse
 from app.db.session import get_db
-from app.core.security import CreateRefreshToken, HashPassword,get_current_owner, VerifyPassword, CreateAccessToken, CreateRefreshToken, refresh_access_token
+from app.core.security import CreateRefreshToken, HashPassword,get_current_owner, VerifyPassword, CreateAccessToken, CreateRefreshToken, refresh_access_token, AuthenticateOwner
 from app.core.config import settings
 from uuid import uuid4
+
+from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix="/auth",tags=["auth"])
 
@@ -33,30 +36,31 @@ def register_owner(owner: OwnerCreate, db: Session = Depends(get_db)):
     db.add(db_owner) 
     db.commit()
     db.refresh(db_owner)
-    return OwnerResponse(id=db_owner.id, access_token=access_token, refresh_token=refresh_token)
-
-@router.post("/login", response_model=OwnerResponse)
-def login_owner(owner: OwnerLogin, db: Session = Depends(get_db)):
-    #check if owner exists
-    db_owner = db.query(Owner).filter(Owner.email == owner.email).first()
-    if not db_owner:
-        raise HTTPException(status_code=400, detail="Invalid email or password")
-
-    #verify the password
-    if not VerifyPassword(owner.password, db_owner.password_hash):
-        raise HTTPException(status_code=400, detail="Invalid email or password")
-
-    #token generation
-    access_token = CreateAccessToken(data={"sub": db_owner.email})
-    refresh_token = CreateRefreshToken(data={"sub": db_owner.email})
-
     return OwnerResponse(email=db_owner.email, access_token=access_token, refresh_token=refresh_token)
 
-@router.post("/refresh", response_model=OwnerResponse)
+@router.post("/login", response_model=OwnerResponse)
+def login_owner(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = AuthenticateOwner(form_data.username, form_data.password)
+   
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid email or password")
+    access_token = CreateAccessToken(data={"sub": user.email})
+    refresh_token = CreateRefreshToken(data={"sub": user.email})
+    new_token = Token(
+        owner_id = user.id,
+        token = refresh_token
+    )
+    db.add(new_token)
+    db.commit()
+    return OwnerResponse(email=user.email, access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post("/refresh")
 def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
     try:
         new_access_token = refresh_access_token(refresh_token)
-        return OwnerResponse(access_token=new_access_token, refresh_token=refresh_token)
+        return {"access_token": new_access_token, "token_type": "bearer"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

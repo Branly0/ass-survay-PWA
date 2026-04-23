@@ -23,7 +23,7 @@ async def websocket_endpoint(websocket: WebSocket):
 def get_fillers():
     return {"message": "Get filler data"}
 
-@router.post("/submit", response_model=survey_schema.SurveyResponse)
+@router.post("/submit", response_model=survey_schema.SurveyFillerResponse)
 async def submit_survey(survey_data: survey_schema.Surveyfiller, db: Session = Depends(get_db)):
     if survey_data.age_group not in ["child", "teen", "adult", "senior"]:
         raise HTTPException(status_code=400, detail="Invalid age group try [child, teen, adult, senior]")

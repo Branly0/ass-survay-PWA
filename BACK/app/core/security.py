@@ -1,5 +1,10 @@
 # manage password hashing 
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from passlib import context as passlib_context
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 pwd_context = passlib_context.CryptContext(schemes=["argon2"], deprecated="auto")
 
@@ -47,7 +52,7 @@ def refresh_access_token(refresh_token: str) -> str:
         db = SessionLocal()
         token = db.query(Token).filter(Token.token == refresh_token).first()
 
-        if token.is_revoked:
+        if not token.is_active:
             raise ValueError("Token has been revoked, you are logged out")
 
         if email is None:
@@ -56,23 +61,29 @@ def refresh_access_token(refresh_token: str) -> str:
     except jwt.JWTError:
         raise ValueError("Invalid token")
     
-def AuthenticateOwner(email: str, password: str) -> bool:
+def AuthenticateOwner(email: str, password: str):
     from app.db.session import SessionLocal
     from app.model.owner import Owner
     db = SessionLocal()
     owner = db.query(Owner).filter(Owner.email == email).first()
     if not owner:
-        return False
-    if not VerifyPassword(password, owner.hashed_password):
-        return False
-    return True
+        return None
+    if not VerifyPassword(password, owner.password_hash):
+        return None
+    return owner
 
-def get_current_owner(token: str):
+def get_current_owner(token: str = Depends(oauth2_scheme)) -> dict:
+    cradidentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
         email: str = payload.get("sub")
         if email is None:
-            raise ValueError("Invalid token")
+            raise cradidentials_exception
         return email
     except jwt.JWTError:
-        raise ValueError("Invalid token")
+        raise cradidentials_exception
+    

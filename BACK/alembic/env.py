@@ -9,6 +9,7 @@ from alembic import context
 
 from app.model.owner import Owner
 from app.model.survey import Survey
+from app.model.token import Token
 
 ##setting the db url
 from dotenv import load_dotenv
