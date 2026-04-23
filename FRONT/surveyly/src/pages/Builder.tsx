@@ -13,9 +13,10 @@ export default function Builder() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [questions, setQuestions] = useState<Question[]>([])
+  const [status, setStatus] = useState<SurveyStatus>('draft')
   const [saving, setSaving] = useState(false)
+  const [createdAt, setCreatedAt] = useState<string | null>(null)
 
-  // Load existing survey if editing
   useEffect(() => {
     if (!id) return
     getSurvey(id).then(survey => {
@@ -23,6 +24,8 @@ export default function Builder() {
       setTitle(survey.title)
       setDescription(survey.description)
       setQuestions(survey.questions)
+      setStatus(survey.status)
+      setCreatedAt(survey.createdAt)
       setStep('questions')
     })
   }, [id])
@@ -65,21 +68,44 @@ export default function Builder() {
     })
   }
 
-  async function handleSave(status: SurveyStatus) {
+  async function handleSave(overrideStatus?: SurveyStatus) {
     setSaving(true)
     const now = new Date().toISOString()
+    const finalStatus = overrideStatus ?? status
     const survey: Survey = {
       id: id ?? uuidv4(),
       title: title.trim(),
       description: description.trim(),
-      status,
+      status: finalStatus,
       questions,
-      createdAt: now,
+      createdAt: createdAt ?? now,
       updatedAt: now,
     }
     await saveSurvey(survey)
+    setStatus(finalStatus)
     setSaving(false)
     navigate('/')
+  }
+
+  const statusConfig: Record<SurveyStatus, { label: string; color: string; next: SurveyStatus; nextLabel: string }> = {
+    draft: {
+      label: 'Draft',
+      color: 'bg-gray-100 text-gray-500',
+      next: 'active',
+      nextLabel: '🟢 Set active',
+    },
+    active: {
+      label: 'Active',
+      color: 'bg-green-50 text-green-700',
+      next: 'close',
+      nextLabel: '🔴 Close survey',
+    },
+    close: {
+      label: 'Closed',
+      color: 'bg-red-50 text-red-500',
+      next: 'draft',
+      nextLabel: '📝 Reopen as draft',
+    },
   }
 
   return (
@@ -99,20 +125,42 @@ export default function Builder() {
             {isEditing ? 'Edit survey' : 'New survey'}
           </h1>
         </div>
+
         <div className="flex items-center gap-2">
+          {/* Status badge + toggle (only when editing) */}
+          {isEditing && (
+            <div className="flex items-center gap-2">
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusConfig[status].color}`}>
+                {statusConfig[status].label}
+              </span>
+              <button
+                onClick={() => handleSave(statusConfig[status].next)}
+                disabled={saving}
+                className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+              >
+                {statusConfig[status].nextLabel}
+              </button>
+            </div>
+          )}
+
+          {/* Save draft (only for new surveys) */}
+          {!isEditing && (
+            <button
+              onClick={() => handleSave('draft')}
+              disabled={!title.trim() || saving}
+              className="text-sm px-4 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Save as draft
+            </button>
+          )}
+
+          {/* Save button */}
           <button
-            onClick={() => handleSave('draft')}
+            onClick={() => handleSave()}
             disabled={!title.trim() || saving}
-            className="text-sm px-4 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Save draft
-          </button>
-          <button
-            onClick={() => handleSave('active')}
-            disabled={!title.trim() || questions.length === 0 || saving}
             className="text-sm px-4 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {saving ? 'Saving...' : 'Publish'}
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
@@ -223,7 +271,6 @@ export default function Builder() {
                       />
                     </div>
 
-                    {/* Question footer */}
                     <div className="flex items-center justify-between pl-7">
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
@@ -236,7 +283,6 @@ export default function Builder() {
                       </label>
 
                       <div className="flex items-center gap-1">
-                        {/* Move up */}
                         <button
                           onClick={() => moveQuestion(q.id, 'up')}
                           disabled={idx === 0}
@@ -246,7 +292,6 @@ export default function Builder() {
                             <path d="M2 8l4-4 4 4"/>
                           </svg>
                         </button>
-                        {/* Move down */}
                         <button
                           onClick={() => moveQuestion(q.id, 'down')}
                           disabled={idx === questions.length - 1}
@@ -256,7 +301,6 @@ export default function Builder() {
                             <path d="M2 4l4 4 4-4"/>
                           </svg>
                         </button>
-                        {/* Delete */}
                         <button
                           onClick={() => removeQuestion(q.id)}
                           className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors"
@@ -272,7 +316,6 @@ export default function Builder() {
               </div>
             )}
 
-            {/* Empty state */}
             {questions.length === 0 && (
               <div className="border border-dashed border-gray-200 rounded-xl py-12 flex flex-col items-center gap-2 text-gray-300">
                 <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round">
@@ -283,7 +326,6 @@ export default function Builder() {
               </div>
             )}
 
-            {/* Add question button */}
             <button
               onClick={addQuestion}
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 border border-dashed border-gray-200 hover:border-gray-400 rounded-xl py-3 px-4 transition-colors"
@@ -291,7 +333,6 @@ export default function Builder() {
               <span className="text-base leading-none">+</span>
               Add question
             </button>
-
           </div>
         )}
       </div>

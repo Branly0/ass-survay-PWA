@@ -29,8 +29,7 @@ async def submit_survey(survey_data: survey_schema.Surveyfiller, db: Session = D
         raise HTTPException(status_code=400, detail="Invalid age group try [child, teen, adult, senior]")
     if survey_data.gender not in ["male", "female"]:
         raise HTTPException(status_code=400, detail="Invalid gender try [male,female]")
-    new_survey = survey.Survey(
-        description=survey_data.description,
+    new_survey = survey.Response(
         age_group=survey_data.age_group,
         gender=survey_data.gender,
         nationality=survey_data.nationality
