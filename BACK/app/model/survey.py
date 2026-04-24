@@ -26,7 +26,7 @@ class Survey(Base):
     description = Column(Text, nullable=True)
     question = Column(JSON, nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    state = Column(Enum(States), default=States.draft, nullable=False)
+    state = Column(Enum(States), default=States.active,  nullable=False)
     response = relationship("Response", back_populates="survey", cascade="all, delete-orphan")
 
 

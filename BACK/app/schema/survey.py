@@ -10,8 +10,6 @@ class SurveyCreate(BaseModel):
     question: List[dict]
 
 class Surveyfiller(BaseModel):
-    id: int
-    description: str
     age_group: str
     gender: str 
     answers: List[dict]

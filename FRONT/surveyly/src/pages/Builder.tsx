@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getSurvey, saveSurvey } from '../db'
+import { getOwner, getSurvey, saveSurvey } from '../db'
 import type { Question, Survey, SurveyStatus } from '../types'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -69,23 +69,69 @@ export default function Builder() {
   }
 
   async function handleSave(overrideStatus?: SurveyStatus) {
-    setSaving(true)
-    const now = new Date().toISOString()
-    const finalStatus = overrideStatus ?? status
-    const survey: Survey = {
-      id: id ?? uuidv4(),
-      title: title.trim(),
-      description: description.trim(),
-      status: finalStatus,
-      questions,
-      createdAt: createdAt ?? now,
-      updatedAt: now,
-    }
-    await saveSurvey(survey)
-    setStatus(finalStatus)
-    setSaving(false)
-    navigate('/')
+  setSaving(true)
+  const now = new Date().toISOString()
+  const finalStatus = overrideStatus ?? status
+  const surveyId = id ?? uuidv4()
+
+  const survey: Survey = {
+    id: surveyId,
+    title: title.trim(),
+    description: description.trim(),
+    status: finalStatus,
+    questions,
+    createdAt: createdAt ?? now,
+    updatedAt: now,
   }
+
+  if (finalStatus === 'active') {
+    try {
+      const owner = await getOwner()
+
+      // Get fresh token in case it was just refreshed
+      const freshOwner = await getOwner()
+      const token = freshOwner?.token
+
+      const payload = {
+        id: 0,  // server auto-increments, send 0 as placeholder
+        title: survey.title,
+        description: survey.description,
+        question: questions.map((q, idx) => {
+          const obj: Record<string, string> = {}
+          obj[String(idx + 1)] = q.label
+          return obj
+        }),
+      }
+
+      console.log('sending payload:', JSON.stringify(payload))
+
+      const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/survey/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      console.log('create status:', res.status)
+      const data = await res.json()
+      console.log('create response:', data)
+
+      if (res.ok) {
+        // Update local survey id with the one the server assigned
+        survey.id = String(data.id ?? surveyId)
+      }
+    } catch (err) {
+      console.error('Failed to sync survey to server:', err)
+    }
+  }
+
+  await saveSurvey(survey)
+  setStatus(finalStatus)
+  setSaving(false)
+  navigate('/')
+}
 
   const statusConfig: Record<SurveyStatus, { label: string; color: string; next: SurveyStatus; nextLabel: string }> = {
     draft: {

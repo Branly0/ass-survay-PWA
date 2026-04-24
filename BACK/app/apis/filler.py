@@ -24,15 +24,17 @@ def get_fillers():
     return {"message": "Get filler data"}
 
 @router.post("/submit", response_model=survey_schema.SurveyFillerResponse)
-async def submit_survey(survey_data: survey_schema.Surveyfiller, db: Session = Depends(get_db)):
+async def submit_survey(survey_data: survey_schema.Surveyfiller, surveys_id:int, db: Session = Depends(get_db)):
     if survey_data.age_group not in ["child", "teen", "adult", "senior"]:
         raise HTTPException(status_code=400, detail="Invalid age group try [child, teen, adult, senior]")
     if survey_data.gender not in ["male", "female"]:
         raise HTTPException(status_code=400, detail="Invalid gender try [male,female]")
     new_survey = survey.Response(
+        survey_id=surveys_id,
         age_group=survey_data.age_group,
+        answers=survey_data.answers,
         gender=survey_data.gender,
-        nationality=survey_data.nationality
+        nationality=survey_data.nationality 
     )
     for client in connected_owner:
         await client.send_text(json.dumps({"event": "new_survey", "data": survey_data.dict()}))
