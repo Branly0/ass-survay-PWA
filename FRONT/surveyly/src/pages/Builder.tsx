@@ -122,6 +122,11 @@ export default function Builder() {
         // Update local survey id with the one the server assigned
         survey.id = String(data.id ?? surveyId)
       }
+      if (res.ok) {
+        const data = await res.json()
+        console.log('create response:', data)
+        survey.serverId = data.id  // store server's integer ID
+      }
     } catch (err) {
       console.error('Failed to sync survey to server:', err)
     }

@@ -10,7 +10,8 @@ export interface Question {
 }
 
 export interface Survey {
-  id: string
+  id: string          // local UUID
+  serverId?: number   // server's integer ID (set after sync)
   title: string
   description: string
   status: SurveyStatus

@@ -17,24 +17,26 @@ export default function Dashboard() {
   const [lastBackup, setLastBackup] = useState<string | null>(null)
   const [backupStatus, setBackupStatus] = useState<'success' | 'failed' | 'pending' | null>(null)
 
-  async function handleDelete(surveyId: string, e: React.MouseEvent) {
+  async function handleDelete(survey: Survey, e: React.MouseEvent) {
     e.stopPropagation()
     if (!confirm('Are you sure you want to delete this survey?')) return
     
-    // Delete from server
-    try {
-      const owner = await getOwner()
-      await fetch(`${import.meta.env.VITE_SERVER_URL}/survey/${surveyId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${owner?.token}` },
-      })
-    } catch (err) {
-      console.error('Failed to delete from server:', err)
+    // Delete from server using integer serverId
+    if (survey.serverId) {
+      try {
+        const owner = await getOwner()
+        await fetch(`${import.meta.env.VITE_SERVER_URL}/survey/${survey.serverId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${owner?.token}` },
+        })
+      } catch (err) {
+        console.error('Failed to delete from server:', err)
+      }
     }
-
-    // Delete locally
-    await deleteSurvey(surveyId)
-    setSurveys(prev => prev.filter(s => s.id !== surveyId))
+  
+    // Delete locally using UUID
+    await deleteSurvey(survey.id)
+    setSurveys(prev => prev.filter(s => s.id !== survey.id))
   }
   useEffect(() => {
     async function load() {
@@ -54,8 +56,9 @@ export default function Dashboard() {
     window.location.reload()
   }
 
-  function copyLink(surveyId: string) {
-    const url = `${window.location.origin}/survey/${surveyId}`
+  function copyLink(survey: Survey) {
+    const linkId = survey.serverId ?? survey.id
+    const url = `${window.location.origin}/survey/${linkId}`
     navigator.clipboard.writeText(url)
   }
 
@@ -197,7 +200,7 @@ export default function Dashboard() {
                   {/* Copy link */}
                   {survey.status !== 'draft' && (
                     <button
-                      onClick={() => copyLink(survey.id)}
+                      onClick={() => copyLink(survey)}
                       title="Copy link"
                       className="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
                     >
@@ -220,7 +223,7 @@ export default function Dashboard() {
                 </div>
                 {/* Delete button — add after the edit button */}
                 <button
-                  onClick={(e) => handleDelete(survey.id, e)}
+                  onClick={(e) => handleDelete(survey, e)}
                   title="Delete"
                   className="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-colors"
                 >

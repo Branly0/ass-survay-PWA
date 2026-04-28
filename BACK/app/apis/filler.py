@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from pydantic import json
 from sqlalchemy.orm import Session
+from app.core.security import get_current_owner
 from app.db.session import get_db
 from app.model import survey
 from app.schema import survey as survey_schema
@@ -8,6 +9,11 @@ from app.schema import survey as survey_schema
 router = APIRouter(prefix="/filler", tags=["filler"])
 
 connected_owner: list[WebSocket] = []
+
+@router.get("/responses", response_model=list[survey_schema.SurveyFillerResponse])
+def get_all_fillers(limit: int = 50,offset: int = 0, db: Session = Depends(get_db), get_current_owner = Depends(get_current_owner)):
+    fillers = db.query(survey.Response).limit(limit).offset(offset).all()
+    return fillers
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -49,3 +55,4 @@ async def submit_survey(survey_data: survey_schema.Surveyfiller, surveys_id:int,
     db.commit()
     db.refresh(new_survey)
     return new_survey
+
