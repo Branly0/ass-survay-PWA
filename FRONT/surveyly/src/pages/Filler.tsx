@@ -109,15 +109,14 @@ export default function Filler() {
 
     try {
       const payload = {
-        description: '',
         age_group: info.age_group,
         gender: info.gender,
-        nationality: info.nationality,
         answers: Object.entries(finalAnswers).map(([k, v]) => ({ [k]: v })),
+        nationality: info.nationality,
       }
 
       const res = await fetch(
-        `${SERVER_URL}/filler/submit?surveys_id=${survey.id}`,
+        `${SERVER_URL}/filler/submit/${survey.id}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -274,8 +273,6 @@ export default function Filler() {
                   {([
                     { value: 'male', label: 'Male' },
                     { value: 'female', label: 'Female' },
-                    { value: 'other', label: 'Other' },
-                    { value: 'prefer_not_to_say', label: 'Prefer not to say' },
                   ] as { value: Gender; label: string }[]).map(g => (
                     <button
                       key={g.value}

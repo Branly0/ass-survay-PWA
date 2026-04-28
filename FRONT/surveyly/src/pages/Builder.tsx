@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getOwner, getSurvey, saveSurvey } from '../db'
+import { getOwner, getSurvey, saveSurvey, deleteSurvey, getAllSurveys, getBackupMeta, clearOwner} from '../db'
 import type { Question, Survey, SurveyStatus } from '../types'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -127,6 +127,11 @@ export default function Builder() {
     }
   }
 
+  // If we're changing from draft to active, delete old draft first
+  if (finalStatus === 'active' && status === 'draft' && id) {
+    await deleteSurvey(id)
+  }
+
   await saveSurvey(survey)
   setStatus(finalStatus)
   setSaving(false)
@@ -153,6 +158,7 @@ export default function Builder() {
       nextLabel: '📝 Reopen as draft',
     },
   }
+  
 
   return (
     <div className="min-h-screen bg-white">

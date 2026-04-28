@@ -23,7 +23,14 @@ async def websocket_endpoint(websocket: WebSocket):
 def get_fillers():
     return {"message": "Get filler data"}
 
-@router.post("/submit", response_model=survey_schema.SurveyFillerResponse)
+@router.get("/{filler_id}")
+def get_filler(filler_id: int, db: Session = Depends(get_db)):
+    filler = db.query(survey.Survey).filter(survey.Survey.id == filler_id).first()
+    if not filler:
+        raise HTTPException(status_code=404, detail="Filler not found")
+    return filler
+
+@router.post("/submit/{surveys_id}", response_model=survey_schema.SurveyFillerResponse)
 async def submit_survey(survey_data: survey_schema.Surveyfiller, surveys_id:int, db: Session = Depends(get_db)):
     if survey_data.age_group not in ["child", "teen", "adult", "senior"]:
         raise HTTPException(status_code=400, detail="Invalid age group try [child, teen, adult, senior]")

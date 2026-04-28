@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAllSurveys, getBackupMeta, clearOwner } from '../db'
+import { getAllSurveys, getBackupMeta } from '../db'
+import { clearOwner, deleteSurvey, getOwner } from '../db'
 import { disconnectSocket } from '../socket'
 import type { Survey, SurveyStatus } from '../types'
 import { formatDistanceToNow } from 'date-fns'
 import { logout } from '../lib/auth'
+
 
 type FilterTab = 'all' | SurveyStatus
 
@@ -15,6 +17,25 @@ export default function Dashboard() {
   const [lastBackup, setLastBackup] = useState<string | null>(null)
   const [backupStatus, setBackupStatus] = useState<'success' | 'failed' | 'pending' | null>(null)
 
+  async function handleDelete(surveyId: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!confirm('Are you sure you want to delete this survey?')) return
+    
+    // Delete from server
+    try {
+      const owner = await getOwner()
+      await fetch(`${import.meta.env.VITE_SERVER_URL}/survey/${surveyId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${owner?.token}` },
+      })
+    } catch (err) {
+      console.error('Failed to delete from server:', err)
+    }
+
+    // Delete locally
+    await deleteSurvey(surveyId)
+    setSurveys(prev => prev.filter(s => s.id !== surveyId))
+  }
   useEffect(() => {
     async function load() {
       const [all, meta] = await Promise.all([getAllSurveys(), getBackupMeta()])
@@ -46,14 +67,15 @@ export default function Dashboard() {
   const statusColors: Record<SurveyStatus, string> = {
     active: 'bg-green-50 text-green-700',
     draft: 'bg-gray-100 text-gray-500',
-    closed: 'bg-red-50 text-red-500',
+    close: 'bg-red-50 text-red-500',
   }
 
   const cardIcons: Record<string, string> = {
     active: '📋',
     draft: '📝',
-    closed: '📊',
+    close: '📊',
   }
+  
 
   return (
     <div className="min-h-screen bg-white">
@@ -196,6 +218,16 @@ export default function Dashboard() {
                     </svg>
                   </button>
                 </div>
+                {/* Delete button — add after the edit button */}
+                <button
+                  onClick={(e) => handleDelete(survey.id, e)}
+                  title="Delete"
+                  className="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5L11 4"/>
+                  </svg>
+                </button>
               </div>
             </div>
           ))}

@@ -24,7 +24,7 @@ export interface Answer {
   value: string
 }
 
-export interface Response {
+export interface SurveyResponse {
   id: string
   surveyId: string
   answers: Answer[]

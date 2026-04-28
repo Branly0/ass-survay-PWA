@@ -21,7 +21,7 @@ class States(enum.Enum):
 
 class Survey(Base):
     __tablename__ = "surveys"
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True)
     title = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     question = Column(JSON, nullable=False)
