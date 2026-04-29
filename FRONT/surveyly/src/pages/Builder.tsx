@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getOwner, getSurvey, saveSurvey, deleteSurvey, getAllSurveys, getBackupMeta, clearOwner} from '../db'
+import { getOwner, getSurvey, saveSurvey, deleteSurvey } from '../db'
 import type { Question, Survey, SurveyStatus } from '../types'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -16,6 +16,7 @@ export default function Builder() {
   const [status, setStatus] = useState<SurveyStatus>('draft')
   const [saving, setSaving] = useState(false)
   const [createdAt, setCreatedAt] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState('')  // ← error state
 
   useEffect(() => {
     if (!id) return
@@ -69,79 +70,75 @@ export default function Builder() {
   }
 
   async function handleSave(overrideStatus?: SurveyStatus) {
-  setSaving(true)
-  const now = new Date().toISOString()
-  const finalStatus = overrideStatus ?? status
-  const surveyId = id ?? uuidv4()
+    setSaving(true)
+    setSaveError('')  // clear previous error
+    const now = new Date().toISOString()
+    const finalStatus = overrideStatus ?? status
+    const surveyId = id ?? uuidv4()
 
-  const survey: Survey = {
-    id: surveyId,
-    title: title.trim(),
-    description: description.trim(),
-    status: finalStatus,
-    questions,
-    createdAt: createdAt ?? now,
-    updatedAt: now,
-  }
-
-  if (finalStatus === 'active') {
-    try {
-      const owner = await getOwner()
-
-      // Get fresh token in case it was just refreshed
-      const freshOwner = await getOwner()
-      const token = freshOwner?.token
-
-      const payload = {
-        id: 0,  // server auto-increments, send 0 as placeholder
-        title: survey.title,
-        description: survey.description,
-        question: questions.map((q, idx) => {
-          const obj: Record<string, string> = {}
-          obj[String(idx + 1)] = q.label
-          return obj
-        }),
-      }
-
-      console.log('sending payload:', JSON.stringify(payload))
-
-      const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/survey/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      })
-
-      console.log('create status:', res.status)
-      const data = await res.json()
-      console.log('create response:', data)
-
-      if (res.ok) {
-        // Update local survey id with the one the server assigned
-        survey.id = String(data.id ?? surveyId)
-      }
-      if (res.ok) {
-        const data = await res.json()
-        console.log('create response:', data)
-        survey.serverId = data.id  // store server's integer ID
-      }
-    } catch (err) {
-      console.error('Failed to sync survey to server:', err)
+    const survey: Survey = {
+      id: surveyId,
+      title: title.trim(),
+      description: description.trim(),
+      status: finalStatus,
+      questions,
+      createdAt: createdAt ?? now,
+      updatedAt: now,
     }
-  }
 
-  // If we're changing from draft to active, delete old draft first
-  if (finalStatus === 'active' && status === 'draft' && id) {
-    await deleteSurvey(id)
-  }
+    if (finalStatus === 'active') {
+      try {
+        const freshOwner = await getOwner()
+        const token = freshOwner?.token
 
-  await saveSurvey(survey)
-  setStatus(finalStatus)
-  setSaving(false)
-  navigate('/')
-}
+        const payload = {
+          id: 0,
+          title: survey.title,
+          description: survey.description,
+          question: questions.map((q, idx) => {
+            const obj: Record<string, string> = {}
+            obj[String(idx + 1)] = q.label
+            return obj
+          }),
+        }
+
+        const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/survey/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        })
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null)
+          const message = errData?.detail ?? 'Failed to publish survey on server.'
+          setSaveError(message)
+          setSaving(false)
+          return
+        }
+
+        const data = await res.json()
+        console.log('server response:', data)
+        survey.serverId = data.id
+
+      } catch {
+        setSaveError('Could not reach the server. Check your connection.')
+        setSaving(false)
+        return
+      }
+    }
+
+    if (finalStatus === 'active' && status === 'draft' && id) {
+      await deleteSurvey(id)
+    }
+
+    await saveSurvey(survey)
+    setStatus(finalStatus)
+    setSaving(false)
+    navigate('/')
+  }
 
   const statusConfig: Record<SurveyStatus, { label: string; color: string; next: SurveyStatus; nextLabel: string }> = {
     draft: {
@@ -163,7 +160,6 @@ export default function Builder() {
       nextLabel: '📝 Reopen as draft',
     },
   }
-  
 
   return (
     <div className="min-h-screen bg-white">
@@ -184,6 +180,14 @@ export default function Builder() {
         </div>
 
         <div className="flex items-center gap-2">
+
+          {/* ← Error message shown here in topbar */}
+          {saveError && (
+            <span className="text-xs text-red-500 max-w-xs text-right">
+              {saveError}
+            </span>
+          )}
+
           {/* Status badge + toggle (only when editing) */}
           {isEditing && (
             <div className="flex items-center gap-2">
@@ -249,7 +253,7 @@ export default function Builder() {
                   name="title"
                   type="text"
                   value={title}
-                  onChange={e => setTitle(e.target.value)}
+                  onChange={e => { setTitle(e.target.value); setSaveError('') }}
                   placeholder="e.g. Customer satisfaction Q2"
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400 transition-colors"
                 />
@@ -264,7 +268,7 @@ export default function Builder() {
                   id="description"
                   name="description"
                   value={description}
-                  onChange={e => setDescription(e.target.value)}
+                  onChange={e => { setDescription(e.target.value); setSaveError('') }}
                   placeholder="Brief explanation of what this survey is about"
                   rows={3}
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-gray-400 transition-colors resize-none"
@@ -307,14 +311,10 @@ export default function Builder() {
               </div>
             </div>
 
-            {/* Question list */}
             {questions.length > 0 && (
               <div className="flex flex-col gap-3">
                 {questions.map((q, idx) => (
-                  <div
-                    key={q.id}
-                    className="border border-gray-100 rounded-xl p-4 bg-gray-50"
-                  >
+                  <div key={q.id} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-xs font-medium text-gray-400 w-5">
                         {idx + 1}.
@@ -340,28 +340,20 @@ export default function Builder() {
                       </label>
 
                       <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => moveQuestion(q.id, 'up')}
-                          disabled={idx === 0}
-                          className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 disabled:opacity-20 transition-colors"
-                        >
+                        <button onClick={() => moveQuestion(q.id, 'up')} disabled={idx === 0}
+                          className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 disabled:opacity-20 transition-colors">
                           <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                             <path d="M2 8l4-4 4 4"/>
                           </svg>
                         </button>
-                        <button
-                          onClick={() => moveQuestion(q.id, 'down')}
-                          disabled={idx === questions.length - 1}
-                          className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 disabled:opacity-20 transition-colors"
-                        >
+                        <button onClick={() => moveQuestion(q.id, 'down')} disabled={idx === questions.length - 1}
+                          className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-gray-600 disabled:opacity-20 transition-colors">
                           <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                             <path d="M2 4l4 4 4-4"/>
                           </svg>
                         </button>
-                        <button
-                          onClick={() => removeQuestion(q.id)}
-                          className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors"
-                        >
+                        <button onClick={() => removeQuestion(q.id)}
+                          className="w-6 h-6 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors">
                           <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                             <path d="M2 2l8 8M10 2l-8 8"/>
                           </svg>

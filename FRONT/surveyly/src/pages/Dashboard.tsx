@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAllSurveys, getBackupMeta } from '../db'
-import { clearOwner, deleteSurvey, getOwner } from '../db'
+import { getAllSurveys, getBackupMeta, deleteSurvey, getOwner } from '../db'
 import { disconnectSocket } from '../socket'
 import type { Survey, SurveyStatus } from '../types'
 import { formatDistanceToNow } from 'date-fns'
@@ -21,7 +20,6 @@ export default function Dashboard() {
     e.stopPropagation()
     if (!confirm('Are you sure you want to delete this survey?')) return
     
-    // Delete from server using integer serverId
     if (survey.serverId) {
       try {
         const owner = await getOwner()
@@ -34,7 +32,6 @@ export default function Dashboard() {
       }
     }
   
-    // Delete locally using UUID
     await deleteSurvey(survey.id)
     setSurveys(prev => prev.filter(s => s.id !== survey.id))
   }
@@ -57,8 +54,7 @@ export default function Dashboard() {
   }
 
   function copyLink(survey: Survey) {
-    const linkId = survey.serverId ?? survey.id
-    const url = `${window.location.origin}/survey/${linkId}`
+    const url = `${window.location.origin}/survey/${survey.serverId ?? survey.id}`
     navigator.clipboard.writeText(url)
   }
 
@@ -151,7 +147,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-medium text-gray-900">Your surveys</h2>
           <div className="flex gap-1">
-            {(['all', 'active', 'draft', 'closed'] as FilterTab[]).map(tab => (
+            {(['all', 'active', 'draft', 'close'] as FilterTab[]).map(tab => (
               <button
                 key={tab}
                 onClick={() => setFilter(tab)}
@@ -161,7 +157,7 @@ export default function Dashboard() {
                     : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
-                {tab}
+                {tab === 'close' ? 'Closed' : tab}
               </button>
             ))}
           </div>
@@ -199,9 +195,7 @@ export default function Dashboard() {
                 <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
                   {/* Copy link */}
                   {survey.status !== 'draft' && (
-                    <button
-                      onClick={() => copyLink(survey)}
-                      title="Copy link"
+                    <button onClick={() => copyLink(survey)} title="Copy link"
                       className="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -211,26 +205,22 @@ export default function Dashboard() {
                     </button>
                   )}
                   {/* Edit */}
-                  <button
-                    onClick={() => navigate(`/builder/${survey.id}`)}
-                    title="Edit"
+                  <button onClick={() => navigate(`/builder/${survey.id}`)} title="Edit"
                     className="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                       <path d="M11 2.5a1.5 1.5 0 0 1 2.1 2.1L5 13H3v-2L11 2.5z"/>
                     </svg>
                   </button>
+                  {/* Delete */}
+                  <button onClick={(e) => handleDelete(survey, e)} title="Delete"
+                    className="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                      <path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5L11 4"/>
+                    </svg>
+                  </button>
                 </div>
-                {/* Delete button — add after the edit button */}
-                <button
-                  onClick={(e) => handleDelete(survey, e)}
-                  title="Delete"
-                  className="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M3 4h10M6 4V3h4v1M5 4l.5 9h5L11 4"/>
-                  </svg>
-                </button>
               </div>
             </div>
           ))}

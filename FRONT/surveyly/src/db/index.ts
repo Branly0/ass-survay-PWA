@@ -3,22 +3,22 @@ import type { Survey, SurveyResponse, BackupMeta, Owner } from '../types';
 
 interface SurveyDB extends DBSchema {
   surveys: {
-    key: string;
-    value: Survey;
-  };
+    key: string      // UUID string
+    value: Survey
+  }
   responses: {
-    key: string;
-    value: SurveyResponse;
-    indexes: { 'by-survey': string };
-  };
+    key: string
+    value: SurveyResponse
+    indexes: { 'by-survey': string }
+  }
   backup_meta: {
-    key: string;
-    value: BackupMeta;
-  };
+    key: string
+    value: BackupMeta
+  }
   owner: {
-    key: string;
-    value: Owner;
-  };
+    key: string
+    value: Owner
+  }
 }
 
 let db: IDBPDatabase<SurveyDB>;

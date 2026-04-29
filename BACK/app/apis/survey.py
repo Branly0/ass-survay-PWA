@@ -10,7 +10,6 @@ router = APIRouter(prefix="/survey", tags=["survey"])
 @router.post("/create", response_model=SurveyCreateResponse)
 def create_survey(survey_data: SurveyCreate, db: Session = Depends(get_db), get_current_owner = Depends(get_current_owner)):
     new_survey = Survey(
-        id = survey_data.id,
         title = survey_data.title,
         description=survey_data.description,
         question=survey_data.question)
@@ -27,7 +26,12 @@ def delete_survey(survey_id: int, db: Session = Depends(get_db), get_current_own
     db.delete(survey)
     db.commit()
     return {"message": "Survey deleted successfully"}
-
+@router.get("/{survey_id}")
+def get_survey(survey_id: int, db: Session = Depends(get_db)):
+    survey = db.query(Survey).filter(Survey.id == survey_id).first()
+    if not survey:
+        raise HTTPException(status_code=404, detail="Survey not found")
+    return survey
 
 
 @router.get("/all", response_model=list[SurveyResponse])
@@ -50,9 +54,3 @@ def get_close_surveys(db: Session = Depends(get_db), get_current_owner = Depends
     surveys = db.query(Survey).filter(Survey.state == States.close).all()
     return [{"id": survey.id, "description": survey.description} for survey in surveys]
 
-@router.get("/{survey_id}")
-def get_survey(survey_id: int, db: Session = Depends(get_db), get_current_owner = Depends(get_current_owner)):
-    survey = db.query(Survey).filter(Survey.id == survey_id).first()
-    if not survey:
-        raise HTTPException(status_code=404, detail="Survey not found")
-    return survey

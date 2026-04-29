@@ -10,7 +10,7 @@ interface Question {
 }
 
 interface Survey {
-  id: string
+  id: number
   title: string
   description: string
   questions: Question[]
@@ -42,28 +42,48 @@ export default function Filler() {
   useEffect(() => {
     async function loadSurvey() {
       try {
-        const res = await fetch(`${SERVER_URL}/filler/${id}`)
+        const res = await fetch(`${SERVER_URL}/survey/${id}`)
+        console.log('survey fetch status:', res.status)
+
         if (res.status === 404) { setStage('not_found'); return }
         if (!res.ok) { setStage('not_found'); return }
+
         const data = await res.json()
+        console.log('survey data:', data)
+
         if (data.state === 'close') { setStage('closed'); return }
 
         // Normalize questions from server format
         // Server stores: [{"1": "question text"}, {"2": "question text"}]
-        const rawQuestions = data.question ?? []
-        const normalized: Question[] = rawQuestions.map((q: Record<string, string>, idx: number) => {
-          const label = Object.values(q)[0] as string
-          return { id: String(idx + 1), label, required: true }
+        const rawQuestions: Record<string, string>[] = data.question ?? []
+        console.log('raw questions:', rawQuestions)
+
+        const normalized: Question[] = rawQuestions.map((q, idx) => {
+          const key = Object.keys(q)[0]
+          const label = q[key]
+          return {
+            id: key,
+            label: label ?? '',
+            required: true,
+          }
         })
+
+        console.log('normalized questions:', normalized)
+
+        if (normalized.length === 0) {
+          setStage('not_found')
+          return
+        }
 
         setSurvey({
           id: data.id,
           title: data.title,
-          description: data.description,
+          description: data.description ?? '',
           questions: normalized,
         })
         setStage('info')
-      } catch {
+      } catch (err) {
+        console.error('loadSurvey error:', err)
         setStage('not_found')
       }
     }
@@ -82,13 +102,14 @@ export default function Filler() {
     const q = survey.questions[currentQ]
     if (q.required && !currentAnswer.trim()) return
 
-    setAnswers(prev => ({ ...prev, [currentQ + 1]: currentAnswer }))
+    const updatedAnswers = { ...answers, [currentQ + 1]: currentAnswer }
+    setAnswers(updatedAnswers)
 
     if (currentQ + 1 < survey.questions.length) {
       setCurrentQ(prev => prev + 1)
       setCurrentAnswer(answers[currentQ + 2] ?? '')
     } else {
-      handleSubmit({ ...answers, [currentQ + 1]: currentAnswer })
+      handleSubmit(updatedAnswers)
     }
   }
 
@@ -111,9 +132,11 @@ export default function Filler() {
       const payload = {
         age_group: info.age_group,
         gender: info.gender,
-        answers: Object.entries(finalAnswers).map(([k, v]) => ({ [k]: v })),
         nationality: info.nationality,
+        answers: Object.entries(finalAnswers).map(([k, v]) => ({ [k]: v })),
       }
+
+      console.log('submitting payload:', payload)
 
       const res = await fetch(
         `${SERVER_URL}/filler/submit/${survey.id}`,
@@ -124,8 +147,11 @@ export default function Filler() {
         }
       )
 
+      console.log('submit status:', res.status)
+
       if (!res.ok) {
-        setError('Something went wrong. Please try again.')
+        const errData = await res.json().catch(() => null)
+        setError(errData?.detail ?? 'Something went wrong. Please try again.')
         setSubmitting(false)
         return
       }
@@ -273,6 +299,8 @@ export default function Filler() {
                   {([
                     { value: 'male', label: 'Male' },
                     { value: 'female', label: 'Female' },
+                    { value: 'other', label: 'Other' },
+                    { value: 'prefer_not_to_say', label: 'Prefer not to say' },
                   ] as { value: Gender; label: string }[]).map(g => (
                     <button
                       key={g.value}
@@ -314,15 +342,15 @@ export default function Filler() {
           )}
 
           {/* ── Question stage ── */}
-          {stage === 'question' && survey && (
+          {stage === 'question' && survey && survey.questions.length > 0 && (
             <div className="flex flex-col gap-6">
               <div>
                 <p className="text-xs text-gray-400 mb-4">
                   Question {currentQ + 1} of {survey.questions.length}
                 </p>
                 <h2 className="text-xl font-medium text-gray-900 leading-snug">
-                  {survey.questions[currentQ].label}
-                  {survey.questions[currentQ].required && (
+                  {survey.questions[currentQ]?.label}
+                  {survey.questions[currentQ]?.required && (
                     <span className="text-red-400 ml-1">*</span>
                   )}
                 </h2>
@@ -351,7 +379,7 @@ export default function Filler() {
                   onClick={handleNext}
                   disabled={
                     submitting ||
-                    (survey.questions[currentQ].required && !currentAnswer.trim())
+                    (survey.questions[currentQ]?.required && !currentAnswer.trim())
                   }
                   className="text-sm px-6 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >

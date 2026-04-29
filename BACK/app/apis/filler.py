@@ -10,9 +10,9 @@ router = APIRouter(prefix="/filler", tags=["filler"])
 
 connected_owner: list[WebSocket] = []
 
-@router.get("/responses", response_model=list[survey_schema.SurveyFillerResponse])
-def get_all_fillers(limit: int = 50,offset: int = 0, db: Session = Depends(get_db), get_current_owner = Depends(get_current_owner)):
-    fillers = db.query(survey.Response).limit(limit).offset(offset).all()
+@router.get("/responses/{survey_id}", response_model=list[survey_schema.SurveyFillerResponse])
+def get_all_fillers(survey_id: int, limit: int = 50, offset: int = 0, db: Session = Depends(get_db), get_current_owner = Depends(get_current_owner)):
+    fillers = db.query(survey.Response).filter(survey.Response.survey_id == survey_id).limit(limit).offset(offset).all()
     return fillers
 
 @router.websocket("/ws")
@@ -31,7 +31,7 @@ def get_fillers():
 
 @router.get("/{filler_id}")
 def get_filler(filler_id: int, db: Session = Depends(get_db)):
-    filler = db.query(survey.Survey).filter(survey.Survey.id == filler_id).first()
+    filler = db.query(survey.Response).filter(survey.Response.id == filler_id).first()
     if not filler:
         raise HTTPException(status_code=404, detail="Filler not found")
     return filler
@@ -49,8 +49,6 @@ async def submit_survey(survey_data: survey_schema.Surveyfiller, surveys_id:int,
         gender=survey_data.gender,
         nationality=survey_data.nationality 
     )
-    for client in connected_owner:
-        await client.send_text(json.dumps({"event": "new_survey", "data": survey_data.dict()}))
     db.add(new_survey)
     db.commit()
     db.refresh(new_survey)

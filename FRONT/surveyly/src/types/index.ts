@@ -1,4 +1,4 @@
-export type SurveyStatus = 'active' | 'draft' | 'close'  // 'close' not 'closed'
+export type SurveyStatus = 'active' | 'draft' | 'close'
 
 export type QuestionType = 'long_text'
 
@@ -10,8 +10,8 @@ export interface Question {
 }
 
 export interface Survey {
-  id: string          // local UUID
-  serverId?: number   // server's integer ID (set after sync)
+  id: string          // local UUID for IndexedDB
+  serverId?: number   // backend's auto-incremented integer
   title: string
   description: string
   status: SurveyStatus
