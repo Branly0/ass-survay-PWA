@@ -299,8 +299,6 @@ export default function Filler() {
                   {([
                     { value: 'male', label: 'Male' },
                     { value: 'female', label: 'Female' },
-                    { value: 'other', label: 'Other' },
-                    { value: 'prefer_not_to_say', label: 'Prefer not to say' },
                   ] as { value: Gender; label: string }[]).map(g => (
                     <button
                       key={g.value}
